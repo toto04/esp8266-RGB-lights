@@ -48,7 +48,7 @@ void setup()
 {
     strip.begin();
     WiFi.begin();
-    while (WiFi.status != WL_CONNECTED)
+    while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
     }
