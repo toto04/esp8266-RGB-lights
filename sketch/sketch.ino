@@ -7,15 +7,19 @@
 
 const char *ssid = "Rete WiFi Morganti";
 const char *pass = "0342070023";
-const char *mqtt_server = "192.168.1.23"; // Raspberry PI's IP
+const char *mqtt_server = "192.168.1.18"; // Raspberry PI's IP
 
 WiFiClient wclient;
 PubSubClient client = PubSubClient(wclient);
 
 // LED configurations
 #include <Adafruit_NeoPixel.h>
-#define PIXELAMOUNT 4
-#define LEDPIN 5
+#ifndef D4
+#define D4 2
+#endif
+
+#define PIXELAMOUNT 18
+#define LEDPIN D4
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXELAMOUNT, LEDPIN, NEO_RGB + NEO_KHZ400);
 
@@ -38,14 +42,15 @@ void callback(char *topic, byte *payload, unsigned int length)
         pl[i] = payload[i];
     }
     int value = String(pl).toInt();
-    tR = (value >> 16) && 0xff;
-    tG = (value >> 8) && 0xff;
-    tB = value && 0xff;
+    tR = (value >> 16) & 0xff;
+    tG = (value >> 8) & 0xff;
+    tB = value & 0xff;
     missingSteps = STEPS;
 }
 
 void setup()
 {
+    Serial.begin(115200);
     strip.begin();
     WiFi.begin();
     while (WiFi.status() != WL_CONNECTED)
@@ -92,6 +97,12 @@ void updateColor()
     for (int i = 0; i < strip.numPixels(); i++)
     {
         strip.setPixelColor(i, cR, cG, cB);
+        Serial.print("Red: ");
+        Serial.print(cR);
+        Serial.print(", green: ");
+        Serial.print(cG);
+        Serial.print(", blue: ");
+        Serial.println(cB);
     }
 
     strip.show();
