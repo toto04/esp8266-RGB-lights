@@ -68,7 +68,7 @@ void loop()
         {
             if (client.connect("ESP8266: ledstrip"))
             {
-                client.subscribe("tmLedStrip");
+                client.subscribe("color");
             }
         }
         else
