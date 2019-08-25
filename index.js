@@ -13,9 +13,6 @@ module.exports = (homebridge) => {
     })
 
     client = mqtt.connect('mqtt://localhost')
-    client.on('connect', () => {
-        client.publish('color', 'hi')
-    })
 
     homebridge.registerAccessory('homebridge-esp8266-rgb-lights', 'RGBLights', RGBLights)
 }
@@ -35,7 +32,6 @@ class RGBLights {
         this.service.getCharacteristic(Characteristic.On)
             .on('set', (v, cb) => {
                 this.on = v
-                console.log(`on: ${v}`)
                 this.update()
                 cb()
             })
@@ -45,7 +41,6 @@ class RGBLights {
         this.service.addCharacteristic(Characteristic.Hue)
             .on('set', (v, cb) => {
                 this.hue = v
-                console.log(`hue: ${v}`)
                 this.update()
                 cb()
             })
@@ -55,7 +50,6 @@ class RGBLights {
         this.service.addCharacteristic(Characteristic.Brightness)
             .on('set', (v, cb) => {
                 this.bri = v
-                console.log(`bri: ${v}`)
                 this.update()
                 cb()
             })
@@ -65,7 +59,6 @@ class RGBLights {
         this.service.addCharacteristic(Characteristic.Saturation)
             .on('set', (v, cb) => {
                 this.sat = v
-                console.log(`sat: ${v}`)
                 this.update()
                 cb()
             })
@@ -76,7 +69,7 @@ class RGBLights {
 
     update() {
         let rgb = convert.hsv.rgb(this.hue, this.sat, this.bri)
-        let color = rgb[0] * 256 * 256 + rgb[1] * 266 + rgb[2]
+        let color = this.on ? rgb[0] * 256 * 256 + rgb[1] * 256 + rgb[2] : 0
         client.publish('color', color.toString())
     }
 
