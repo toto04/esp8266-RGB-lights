@@ -1,25 +1,134 @@
 <html>
 
 <head>
-    <script src="convert-bundle.js" defer></script>
     <style>
         body,
         html {
+            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
             background-color: #303030;
             color: white;
+            display: flex;
+            width: 100%;
+        }
+
+        .flexy {
+            margin: auto;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        input {
+            margin-top: 25px;
+            width: 250px;
+        }
+
+        #right {
+            display: flex;
+        }
+
+        #color {
+            background-color: white;
+            margin-left: 30px;
+            height: 300px;
+            width: 50px;
         }
     </style>
 </head>
 
 <body>
-    <select name="mode" id="mode">
-        <option value="fixed">fixed</option>
-        <option value="perlin noise">perlin noise</option>
-    </select>
-    <input type="range" id="slider" min="0" max="100" value="100">
-    <canvas id="picker" width="250" height="250">
+    <div id="left" class="flexy">
+        <h1>Offline</h1>
+        <select name="mode" id="mode">
+            <option value="fixed">fixed</option>
+            <option value="perlin noise">perlin noise</option>
+        </select>
+    </div>
+    <div id="right" class="flexy">
+        <div>
+            <canvas id="picker" width="250" height="250"></canvas>
+            <input type="range" id="slider" min="0" max="100" value="100">
+        </div>
+        <div id="color"></div>
+    </div>
 
-    </canvas>
+    <script src="convert-bundle.js"></script>
+    <script>
+
+        let convert = window.convert
+
+        let lastx = 125, lasty = 125
+
+        let mode = document.querySelector('#mode')
+        mode.addEventListener('change', () => {
+            fetch('/mode', {
+                method: 'post',
+                body: mode.value
+            })
+        })
+
+        let slider = document.querySelector('#slider')
+        slider.addEventListener('change', () => {
+            updateWheel()
+            updateColor()
+        })
+        slider.addEventListener('input', () => {
+            updateColor()
+            fetch('/brightness', {
+                method: 'post',
+                body: hsv[2]
+            })
+        })
+        let pickEl = document.querySelector('#picker')
+        let picker = pickEl.getContext('2d')
+        let down = false
+        pickEl.addEventListener('mousedown', () => down = true)
+        pickEl.addEventListener('mouseup', () => down = false)
+        pickEl.addEventListener('mousemove', (e) => {
+            if (down) {
+                lastx = e.x - pickEl.offsetLeft
+                lasty = e.y - pickEl.offsetTop
+                updateColor()
+            }
+        })
+        updateWheel()
+
+        function updateWheel() {
+            for (let x = 0; x < 250; x++) {
+                for (let y = 0; y < 250; y++) {
+                    let HSV = getHSV(x, y)
+                    if (!HSV) continue
+                    let rgb = convert.hsv.rgb(HSV)
+                    picker.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
+                    picker.fillRect(x, y, 1, 1)
+                }
+            }
+        }
+
+        function updateColor() {
+            let hsv = getHSV(lastx, lasty)
+            if (hsv) {
+                let hex = convert.hsv.hex(hsv)
+                document.getElementById('color').style.backgroundColor = '#' + hex
+                fetch('/color', {
+                    method: 'post',
+                    body: hex
+                })
+            }
+        }
+
+        function getHSV(x, y) {
+            let cx = x - 125
+            let cy = y - 125
+            let hue = Math.round(Math.atan2(cy, cx) / Math.PI * 180) + 180
+            let sat = Math.sqrt(cx * cx + cy * cy)
+            if (sat > 125) return
+            sat = Math.round(sat / 1.25)
+            return [hue, sat, slider.value]
+        }
+
+    </script>
 </body>
 
 </html>

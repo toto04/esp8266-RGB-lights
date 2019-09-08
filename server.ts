@@ -1,25 +1,35 @@
-import mosca from 'mosca'
-import mqtt, { MqttClient } from 'mqtt'
 import convert from 'color-convert'
-import express from 'express'
-import bodyParser from 'body-parser'
-const app = express()
+import express, { Express } from 'express'
+import Ticker from './ticker'
+import { EventEmitter } from 'events'
 
-let broker = new mosca.Server({ port: 1883 })
-broker.on('clientConnected', (c: { id: any; }) => {
-    console.log(`[broker] client connected with id ${c.id}`)
-})
-let client = mqtt.connect('mqtt://localhost')
+export default class Server extends EventEmitter {
+    app: Express
+    ticker: Ticker
+    constructor() {
+        super()
+        this.app = express()
+        this.ticker = new Ticker(100)
 
-app.use(express.text())
-app.post('/color', (req, res) => {
-    let hsv = convert.hex.hsv(req.body)
-    console.log(parseInt(convert.hsv.hex(hsv), 16))
-    res.end()
-})
-app.post('/mode', (req, res) => {
-    console.log(`mode: ${req.body}`)
-    res.end()
-})
-app.use(express.static('static'))
-app.listen(2480)
+        this.app.use(express.text())
+        this.app.post('/color', (req, res) => {
+            let hsv = convert.hex.hsv(req.body)
+            this.ticker.once(0, () => {
+                this.emit('color', hsv)
+            })
+            res.end()
+        })
+        this.app.post('/mode', (req, res) => {
+            this.emit('mode', req.body)
+            res.end()
+        })
+        this.app.post('/brightness', (req, res) => {
+            this.ticker.once(1, () => {
+                this.emit('brightness', req.body)
+            })
+            res.end()
+        })
+        this.app.use(express.static('static'))
+        this.app.listen(2480)
+    }
+}

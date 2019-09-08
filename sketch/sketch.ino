@@ -27,9 +27,9 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXELAMOUNT, LEDPIN, NEO_RGB + NEO_K
 #define TRANSITION_TIME 500
 int missingSteps = 0;
 
-int cR = 0, tR = 0;
-int cG = 0, tG = 0;
-int cB = 0, tB = 0;
+float cR = 0, tR = 0;
+float cG = 0, tG = 0;
+float cB = 0, tB = 0;
 
 /* Code */
 // callback for mqtt connection
@@ -50,8 +50,9 @@ void callback(char *topic, byte *payload, unsigned int length)
 
 void setup()
 {
-    Serial.begin(115200);
     strip.begin();
+    strip.clear();
+    strip.show();
     WiFi.begin();
     while (WiFi.status() != WL_CONNECTED)
     {
@@ -96,15 +97,9 @@ void updateColor()
 
     for (int i = 0; i < strip.numPixels(); i++)
     {
-        strip.setPixelColor(i, cR, cG, cB);
-        Serial.print("Red: ");
-        Serial.print(cR);
-        Serial.print(", green: ");
-        Serial.print(cG);
-        Serial.print(", blue: ");
-        Serial.println(cB);
+        strip.setPixelColor(i, strip.gamma32(strip.Color(cR, cG, cB)));
     }
-
+    
     strip.show();
     missingSteps--;
 }
