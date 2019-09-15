@@ -5,7 +5,7 @@ import mosca from 'mosca'
 
 type Mode = 'fixed' | 'perlin noise' | 'rainbow'
 
-export default class Lights {
+export default class Light {
     private on = false
     private intHue = 0
     private intSaturation = 0
@@ -57,6 +57,16 @@ export default class Lights {
         this.client.publish('mode', this.mode)
     }
 
+    toJSON() {
+        return {
+            "state": this.on,
+            "hue": this.hue,
+            "saturation": this.saturation,
+            "brightness": this.brightness,
+            "mode": this.mode
+        }
+    }
+
     turn(val: 'on' | 'off') {
         this.on = val == 'on'
     }
@@ -77,4 +87,5 @@ export default class Lights {
         this.updateColor()
         this.updateBrightness()
     }
+    get state() { return this.on }
 }
