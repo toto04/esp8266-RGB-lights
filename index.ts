@@ -19,7 +19,7 @@ class RGBLights {
         this.config = config
         this.name = config.name
 
-        this.light = new Light()
+        this.light = new Light(18)
 
         this.service = new Service.Lightbulb(this.name, 'RGB Strip')
         this.service.getCharacteristic(Characteristic.On)

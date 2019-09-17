@@ -18,59 +18,66 @@ PubSubClient client = PubSubClient(wclient);
 #define PIXELAMOUNT 18
 #define LEDPIN 4
 
-CRGBArray<PIXELAMOUNT> leds;
+CRGB leds[PIXELAMOUNT];
+CHSV colors[PIXELAMOUNT];
 
-#define STEPS 20
-#define TRANSITION_TIME 500
-int missingSteps = 0;
+#define STEPS 15
+int missingSteps = STEPS;
 
-float cR = 0, tR = 0;
-float cG = 0, tG = 0;
-float cB = 0, tB = 0;
-int brightness = 0;
-String mode = "perlin";
+String mode = "fixed";
 
 /* Code */
 // callback for mqtt connection
-void callback(char *topic, byte *payload, unsigned int length)
+void callback(char *top, byte *pl, unsigned int length)
 {
-    String inTopic = String(topic);
+    String topic = String(top);
     char pla[length];
     for (int i = 0; i < length; i++)
     {
-        pla[i] = payload[i];
+        pla[i] = pl[i];
     }
+    String payload = String(pla);
+    // -------------------------
 
-    String pl = String(pla);
+    uint8_t pixId = payload.toInt();
 
-    if (inTopic == "color")
+    if (topic == "hue")
     {
-        int value = pl.toInt();
-        tR = (value >> 16) & 0xff;
-        tG = (value >> 8) & 0xff;
-        tB = value & 0xff;
+        colors[pixId].h = payload.substring(payload.indexOf(' ') + 1).toInt();
     }
-    else if (inTopic == "brightness")
+    else if (topic == "saturation")
     {
-        brightness = pl.toInt();
+        colors[pixId].s = payload.substring(payload.indexOf(' ') + 1).toInt();
     }
-    else if (inTopic == "mode")
+    else if (topic == "brightness")
     {
-        mode = pl;
+        colors[pixId].v = payload.substring(payload.indexOf(' ') + 1).toInt();
     }
-
+    else if (topic == "mode")
+    {
+        mode = payload;
+    }
     missingSteps = STEPS;
 }
 
 void setup()
 {
-    FastLED.addLeds<WS2812, LEDPIN, RBG>(leds, PIXELAMOUNT).setCorrection(TypicalLEDStrip);
+    for (int i = 0; i < PIXELAMOUNT; i++)
+        colors[i] = CHSV(0, 0, 100);
+    FastLED.addLeds<WS2812, LEDPIN, RGB>(leds, PIXELAMOUNT)
+        .setCorrection(TypicalLEDStrip);
+    FastLED.clear();
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(500);
-    }
+    // while (WiFi.status() != WL_CONNECTED)
+    // {
+    //     leds[0] = CRGB::Red;
+    //     FastLED.show();
+    //     delay(200);
+    //     leds[0] = CRGB::Black;
+    //     FastLED.show();
+    //     delay(800);
+    // }
 
     ArduinoOTA.begin();
     client.setServer(mqtt_server, 1883);
@@ -106,36 +113,50 @@ void loop()
     else if (mode == "perlin")
         perlin();
 
-    delay(33);
+    delay(33); // refreshes on 30Hz
 }
 
 void fixed()
 {
-    // cR += (tR - cR) / missingSteps;
-    // cG += (tG - cG) / missingSteps;
-    // cB += (tB - cB) / missingSteps;
-
-    // for (int i = 0; i < strip.numPixels(); i++)
-    // {
-    //     strip.setPixelColor(i, strip.gamma32(strip.Color(cR, cG, cB)));
-    // }
-
-    // strip.show();
-    // missingSteps--;
+    if (missingSteps)
+    {
+        for (int i = 0; i < PIXELAMOUNT; i++)
+        {
+            const CRGB newColor = colors[i];
+            leds[i].r += ((int)newColor.r - (int)leds[i].r) / missingSteps;
+            leds[i].g += ((int)newColor.g - (int)leds[i].g) / missingSteps;
+            leds[i].b += ((int)newColor.b - (int)leds[i].b) / missingSteps;
+        }
+        FastLED.show();
+        missingSteps--;
+    }
 }
 
 static uint16_t perlinOffset = 0;
+#define VARIANCE 80  // how low the lowest valley will go
+#define SPEED 10     // uint8, how fast the pattern changes
+#define DISTANCE 100 // uint7, the difference between the pixels, the higher the tighter
 void perlin()
 {
     for (int i = 0; i < PIXELAMOUNT; i++)
     {
-        int bri = 220 + inoise8_raw(i * 100, perlinOffset * 10) * 40 / 70;
+        int bri = colors[i].v - inoise8(i * DISTANCE, perlinOffset * SPEED) * VARIANCE / 255;
         if (bri > 255)
             bri = 255;
         if (bri < 0)
             bri = 0;
 
-        leds[i] = CHSV(300, 247, bri);
+        const CRGB newColor = CHSV(colors[i].h, colors[i].s, bri);
+        if (missingSteps)
+        {
+            leds[i].r += ((int)newColor.r - (int)leds[i].r) / missingSteps;
+            leds[i].g += ((int)newColor.g - (int)leds[i].g) / missingSteps;
+            leds[i].b += ((int)newColor.b - (int)leds[i].b) / missingSteps;
+        }
+        else
+        {
+            leds[i] = newColor;
+        }
     }
     FastLED.show();
     perlinOffset++;

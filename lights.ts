@@ -5,18 +5,20 @@ import mosca from 'mosca'
 
 type Mode = 'fixed' | 'perlin noise' | 'rainbow'
 
+
 export default class Light {
+    private nPixels: number
+    private pixels: { h: number, s: number, v: number }[] = []
     private on = false
-    private intHue = 0
-    private intSaturation = 0
-    private intBrightness = 100
     mode: Mode = 'fixed'
 
     server = new Server()
     client: MqttClient
     broker: any
 
-    constructor() {
+    constructor(nPixels) {
+        for (let i = 0; i < nPixels; i++) this.pixels.push({ h: 0, s: 0, v: 100 })
+
         this.broker = new mosca.Server({ port: 1883 })
         this.broker.on('clientConnected', (c: { id: any; }) => {
             console.log(`[broker] connected client: ${c.id}`)
@@ -26,66 +28,62 @@ export default class Light {
         })
         this.client = mqtt.connect('mqtt://localhost')
 
-        this.server.on('color', (hsv: [number, number, number]) => {
-            this.intHue = hsv[0]
-            this.intSaturation = hsv[1]
-            this.intBrightness = hsv[2]
-            this.updateColor()
-        })
-
-        this.server.on('brightness', (bri: number) => {
-            this.intBrightness = bri
-            this.updateBrightness()
+        this.server.on('color', (id: number, h: number, s: number, v: number) => {
+            this.setHue(id, h)
+            this.setSaturation(id, s)
+            this.setBrightness(id, h)
         })
 
         this.server.on('mode', (mode: Mode) => {
             this.mode = mode
-            this.updateMode()
+            this.client.publish('mode', mode)
         })
     }
 
-    private updateColor() {
-        let hex = convert.hsv.hex([this.intHue, this.intSaturation, this.intBrightness])
-        this.client.publish('color', this.on ? parseInt(hex, 16).toString() : '0')
+    setHue(hue: number, id?: number) {
+        if (id == undefined) for (let i = 0; i < this.nPixels; i++) {
+            this.pixels[i].h = hue
+        } else this.pixels[id].h = hue
+        this.client.publish('hue', `${id} ${Math.floor(hue * 255 / 360)}`)
     }
 
-    private updateBrightness() {
-        this.client.publish('brightness', this.on ? this.intBrightness.toString() : '0')
+    setSaturation(saturation: number, id?: number) {
+        if (id == undefined) for (let i = 0; i < this.nPixels; i++) {
+            this.pixels[i].s = saturation
+        } else this.pixels[id].s = saturation
+        this.client.publish('saturation', `${id} ${saturation}`)
     }
 
-    private updateMode() {
-        this.client.publish('mode', this.mode)
+    setBrightness(brightness: number, id?: number) {
+        if (id == undefined) for (let i = 0; i < this.nPixels; i++) {
+            this.pixels[i].v = brightness
+        } else this.pixels[id].v = brightness
+        this.client.publish('brightness', `${id} ${brightness}`)
     }
 
-    toJSON() {
-        return {
-            "state": this.on,
-            "hue": this.hue,
-            "saturation": this.saturation,
-            "brightness": this.brightness,
-            "mode": this.mode
-        }
+    get hue() {
+        return this.pixels[0].h
+    }
+    set hue(v: number) {
+        this.setHue(v)
+    }
+
+    get saturation() {
+        return this.pixels[0].s
+    }
+    set saturation(v: number) {
+        this.setSaturation(v)
+    }
+
+    get brightness() {
+        return this.pixels[0].v
+    }
+    set brightness(v: number) {
+        this.setBrightness(v)
     }
 
     turn(val: 'on' | 'off') {
         this.on = val == 'on'
-    }
-
-    get hue() { return this.intHue }
-    set hue(h: number) {
-        this.intHue = h
-        this.updateColor()
-    }
-    get saturation() { return this.intSaturation }
-    set saturation(s: number) {
-        this.intSaturation = s
-        this.updateColor()
-    }
-    get brightness() { return this.intBrightness }
-    set brightness(b: number) {
-        this.intBrightness = b
-        this.updateColor()
-        this.updateBrightness()
     }
     get state() { return this.on }
 }

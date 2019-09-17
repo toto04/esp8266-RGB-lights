@@ -12,21 +12,15 @@ export default class Server extends EventEmitter {
         this.ticker = new Ticker(100)
 
         this.app.use(express.text())
-        this.app.post('/color', (req, res) => {
-            let hsv = convert.hex.hsv(req.body)
+        this.app.post('/color/:id', (req, res) => {
+            let hsv = req.body
             this.ticker.once(0, () => {
-                this.emit('color', hsv)
+                this.emit('color', req.params.id, hsv.h, hsv.s, hsv.v)
             })
             res.end()
         })
         this.app.post('/mode', (req, res) => {
             this.emit('mode', req.body)
-            res.end()
-        })
-        this.app.post('/brightness', (req, res) => {
-            this.ticker.once(1, () => {
-                this.emit('brightness', req.body)
-            })
             res.end()
         })
         this.app.use(express.static('static'))
