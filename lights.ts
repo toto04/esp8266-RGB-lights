@@ -38,6 +38,10 @@ export default class Light {
             this.mode = mode
             this.client.publish('mode', mode)
         })
+
+        this.server.on('jsonReq', () => {
+            this.server.emit('jsonRes', this.toJSON())
+        })
     }
 
     setHue(hue: number, id?: number) {
@@ -59,6 +63,10 @@ export default class Light {
             this.pixels[i].v = brightness
         } else this.pixels[id].v = brightness
         this.client.publish('brightness', `${id} ${brightness}`)
+    }
+
+    toJSON() {
+        return JSON.stringify({pixels: this.pixels, mode: this.mode})
     }
 
     get hue() {
