@@ -23,15 +23,15 @@ export default class Light {
         this.broker.on('clientConnected', (c: { id: any; }) => {
             console.log(`[broker] connected client: ${c.id}`)
         })
-        this.broker.on('published', (packet) => {
-            console.log(packet.topic, packet.payload.toString())
-        })
+        // this.broker.on('published', (packet) => {
+        //     console.log(packet.topic, `"${packet.payload.toString()}"`)
+        // })
         this.client = mqtt.connect('mqtt://localhost')
 
         this.server.on('color', (id: number, h: number, s: number, v: number) => {
-            this.setHue(id, h)
-            this.setSaturation(id, s)
-            this.setBrightness(id, h)
+            this.setHue(h, id)
+            this.setSaturation(s, id)
+            this.setBrightness(v, id)
         })
 
         this.server.on('mode', (mode: Mode) => {
@@ -47,26 +47,35 @@ export default class Light {
     setHue(hue: number, id?: number) {
         if (id == undefined) for (let i = 0; i < this.nPixels; i++) {
             this.pixels[i].h = hue
-        } else this.pixels[id].h = hue
-        this.client.publish('hue', `${id} ${Math.floor(hue * 255 / 360)}`)
+            this.client.publish('hue', `${i} ${Math.floor(hue * 255 / 360)}`)
+        } else {
+            this.pixels[id].h = hue
+            this.client.publish('hue', `${id} ${Math.floor(hue * 255 / 360)}`)
+        }
     }
 
     setSaturation(saturation: number, id?: number) {
         if (id == undefined) for (let i = 0; i < this.nPixels; i++) {
             this.pixels[i].s = saturation
-        } else this.pixels[id].s = saturation
-        this.client.publish('saturation', `${id} ${saturation}`)
+            this.client.publish('saturation', `${i} ${saturation}`)
+        } else {
+            this.pixels[id].s = saturation
+            this.client.publish('saturation', `${id} ${saturation}`)
+        }
     }
 
     setBrightness(brightness: number, id?: number) {
         if (id == undefined) for (let i = 0; i < this.nPixels; i++) {
             this.pixels[i].v = brightness
-        } else this.pixels[id].v = brightness
-        this.client.publish('brightness', `${id} ${brightness}`)
+            this.client.publish('brightness', `${i} ${brightness}`)
+        } else {
+            this.pixels[id].v = brightness
+            this.client.publish('brightness', `${id} ${brightness}`)
+        }
     }
 
     toJSON() {
-        return JSON.stringify({pixels: this.pixels, mode: this.mode})
+        return JSON.stringify({ pixels: this.pixels, mode: this.mode })
     }
 
     get hue() {

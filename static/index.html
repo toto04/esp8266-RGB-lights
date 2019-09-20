@@ -7,6 +7,28 @@
             font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
             background-color: #303030;
             color: white;
+            width: 100%;
+        }
+
+        #pixContainer {
+            height: 100px;
+        }
+
+        .pixelSelector>div {
+            width: auto;
+            height: 100%;
+            display: inline-block;
+        }
+
+        .pixelSelector {
+            display: flex;
+            background: white;
+            height: 60px;
+            width: 80%;
+            margin: 20px 10%;
+        }
+
+        #colorSelector {
             display: flex;
             width: 100%;
         }
@@ -38,27 +60,44 @@
 </head>
 
 <body>
-    <div id="left" class="flexy">
-        <h1>Offline</h1>
-        <select name="mode" id="mode">
-            <option value="fixed">fixed</option>
-            <option value="perlin noise">perlin noise</option>
-        </select>
+    <div id="pixContainer">
+        <div class="pixelSelector"></div>
     </div>
-    <div id="right" class="flexy">
-        <div>
-            <canvas id="picker" width="250" height="250"></canvas>
-            <input type="range" id="slider" min="0" max="100" value="100">
+    <div id="colorSelector">
+        <div id="left" class="flexy">
+            <h1>Offline</h1>
+            <select name="mode" id="mode">
+                <option value="fixed">fixed</option>
+                <option value="perlin noise">perlin noise</option>
+            </select>
         </div>
-        <div id="color"></div>
+        <div id="right" class="flexy">
+            <div>
+                <canvas id="picker" width="250" height="250"></canvas>
+                <input type="range" id="slider" min="0" max="100" value="100">
+            </div>
+            <div id="color"></div>
+        </div>
     </div>
 
     <script src="convert-bundle.js"></script>
     <script>
 
         let convert = window.convert
-
         let lastx = 125, lasty = 125
+        let pixels = []
+
+        fetch('/json').then(async (res) => {
+            let obj = await res.json()
+            document.querySelector('h1').innerHTML = obj.mode
+            console.log('awd')
+            for (let i = 0; i < obj.pixels.length; i++) {
+                let el = document.createElement('div')
+                el.style.backgroundColor = '#' + convert.hsv.hex([obj.pixels[i].h, obj.pixels[i].s, obj.pixels[i].v])
+                pixels.push(el)
+                document.querySelector('.pixelSelector').appendChild(el)
+            }
+        })
 
         let mode = document.querySelector('#mode')
         mode.addEventListener('change', () => {
@@ -75,10 +114,6 @@
         })
         slider.addEventListener('input', () => {
             updateColor()
-            fetch('/brightness', {
-                method: 'post',
-                body: hsv[2]
-            })
         })
         let pickEl = document.querySelector('#picker')
         let picker = pickEl.getContext('2d')
@@ -109,11 +144,9 @@
         function updateColor() {
             let hsv = getHSV(lastx, lasty)
             if (hsv) {
-                let hex = convert.hsv.hex(hsv)
-                document.getElementById('color').style.backgroundColor = '#' + hex
-                fetch('/color', {
+                fetch('/color/1', {
                     method: 'post',
-                    body: hex
+                    body: JSON.stringify({h: hsv[0], s: hsv[1], v: hsv[2]})
                 })
             }
         }

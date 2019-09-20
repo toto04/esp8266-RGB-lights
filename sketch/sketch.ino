@@ -69,19 +69,25 @@ void setup()
     FastLED.clear();
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
-    // while (WiFi.status() != WL_CONNECTED)
-    // {
-    //     leds[0] = CRGB::Red;
-    //     FastLED.show();
-    //     delay(200);
-    //     leds[0] = CRGB::Black;
-    //     FastLED.show();
-    //     delay(800);
-    // }
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        leds[0] = CRGB::Red;
+        FastLED.show();
+        delay(200);
+        leds[0] = CRGB::Black;
+        FastLED.show();
+        delay(800);
+    }
 
     ArduinoOTA.begin();
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback);
+    if (client.connect("Luci Tommaso"))
+    {
+        client.subscribe("hue");
+        client.subscribe("saturation");
+        client.subscribe("brightness");
+    }
 }
 
 void loop()
@@ -89,19 +95,7 @@ void loop()
     if (WiFi.status() == WL_CONNECTED)
     {
         ArduinoOTA.handle();
-        // if (!client.connected())
-        // {
-        //     if (client.connect("ESP8266: ledstrip"))
-        //     {
-        //         client.subscribe("color");
-        //         Serial.println("Subscibing to MQTT!");
-        //     }
-        // }
-        // else
-        // {
-        //     client.loop();
-        //     Serial.println("MQtt!!");
-        // }
+        client.loop();
     }
     else
         WiFi.reconnect();
@@ -109,7 +103,7 @@ void loop()
     if (mode == "fixed")
         fixed();
     else if (mode == "rainbow")
-        fixed();
+        rainbow();
     else if (mode == "perlin")
         perlin();
 
@@ -130,6 +124,17 @@ void fixed()
         FastLED.show();
         missingSteps--;
     }
+}
+
+static uint8_t rainbow_hue = 0;
+void rainbow()
+{
+    for (int i = 0; i < PIXELAMOUNT; i++)
+    {
+        leds[i] = CHSV(rainbow_hue + i; 100; colors[i].v);
+    }
+    rainbow_hue++;
+    FastLED.show();
 }
 
 static uint16_t perlinOffset = 0;

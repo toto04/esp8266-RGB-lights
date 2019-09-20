@@ -7,8 +7,7 @@ export default class Ticker {
     }
 
     private func() {
-        for (let handler of this.handlers) handler()
-
+        for (let handler of this.handlers) if (typeof handler == 'function') handler()
         this.handlers = []
     }
 

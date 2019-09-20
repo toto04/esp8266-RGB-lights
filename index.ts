@@ -7,6 +7,12 @@ export default (homebridge: any) => {
     homebridge.registerAccessory('homebridge-esp8266-rgb-lights', 'RGBLights', RGBLights)
 }
 
+// for testing purposes
+if (require.main === module) {
+    console.log("starting in stand-alone mode")
+    let sal = new Light(18)
+}
+
 class RGBLights {
     log: any
     config: any

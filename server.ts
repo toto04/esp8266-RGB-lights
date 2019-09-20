@@ -13,10 +13,9 @@ export default class Server extends EventEmitter {
 
         this.app.use(express.text())
         this.app.post('/color/:id', (req, res) => {
-            let hsv = req.body
+            let hsv = JSON.parse(req.body)
             let id = parseInt(req.params.id)
             this.ticker.once(id, () => {
-                console.log(id, hsv)
                 this.emit('color', id, hsv.h, hsv.s, hsv.v)
             })
             res.end()
