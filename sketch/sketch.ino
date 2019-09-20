@@ -7,7 +7,7 @@
 
 const char *ssid = "Rete WiFi Morganti";
 const char *pass = "0342070023";
-const char *mqtt_server = "192.168.1.18"; // Raspberry PI's IP
+const char *mqtt_server = "192.168.1.7"; // Raspberry PI's IP
 
 WiFiClient wclient;
 PubSubClient client = PubSubClient(wclient);
@@ -40,7 +40,6 @@ void callback(char *top, byte *pl, unsigned int length)
     // -------------------------
 
     uint8_t pixId = payload.toInt();
-
     if (topic == "hue")
     {
         colors[pixId].h = payload.substring(payload.indexOf(' ') + 1).toInt();
@@ -62,6 +61,7 @@ void callback(char *top, byte *pl, unsigned int length)
 
 void setup()
 {
+    Serial.begin(115200);
     for (int i = 0; i < PIXELAMOUNT; i++)
         colors[i] = CHSV(0, 0, 100);
     FastLED.addLeds<WS2812, LEDPIN, RGB>(leds, PIXELAMOUNT)
@@ -87,6 +87,7 @@ void setup()
         client.subscribe("hue");
         client.subscribe("saturation");
         client.subscribe("brightness");
+        client.subscribe("mode");
     }
 }
 
@@ -121,6 +122,10 @@ void fixed()
             leds[i].g += ((int)newColor.g - (int)leds[i].g) / missingSteps;
             leds[i].b += ((int)newColor.b - (int)leds[i].b) / missingSteps;
         }
+        Serial.println(missingSteps);
+        Serial.println(leds[0].r);
+        Serial.println(colors[0].h);
+        Serial.println();
         FastLED.show();
         missingSteps--;
     }
@@ -131,21 +136,21 @@ void rainbow()
 {
     for (int i = 0; i < PIXELAMOUNT; i++)
     {
-        leds[i] = CHSV(rainbow_hue + i; 100; colors[i].v);
+        leds[i] = CHSV(rainbow_hue - i * 15, 255, colors[i].v);
     }
     rainbow_hue++;
     FastLED.show();
 }
 
 static uint16_t perlinOffset = 0;
-#define VARIANCE 80  // how low the lowest valley will go
+#define VARIANCE 150 // how low the lowest valley will go
 #define SPEED 10     // uint8, how fast the pattern changes
 #define DISTANCE 100 // uint7, the difference between the pixels, the higher the tighter
 void perlin()
 {
     for (int i = 0; i < PIXELAMOUNT; i++)
     {
-        int bri = colors[i].v - inoise8(i * DISTANCE, perlinOffset * SPEED) * VARIANCE / 255;
+        int bri = colors[i].v - inoise8(i * DISTANCE, perlinOffset * SPEED) * VARIANCE / 255.0;
         if (bri > 255)
             bri = 255;
         if (bri < 0)
