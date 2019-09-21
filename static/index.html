@@ -68,7 +68,8 @@
             <h1>Offline</h1>
             <select name="mode" id="mode">
                 <option value="fixed">fixed</option>
-                <option value="perlin noise">perlin noise</option>
+                <option value="perlin">perlin noise</option>
+                <option value="rainbow">rainbow</option>
             </select>
         </div>
         <div id="right" class="flexy">
@@ -118,7 +119,12 @@
         let pickEl = document.querySelector('#picker')
         let picker = pickEl.getContext('2d')
         let down = false
-        pickEl.addEventListener('mousedown', () => down = true)
+        pickEl.addEventListener('mousedown', (e) => {
+            down = true
+            lastx = e.x - pickEl.offsetLeft
+            lasty = e.y - pickEl.offsetTop
+            updateColor()
+        })
         pickEl.addEventListener('mouseup', () => down = false)
         pickEl.addEventListener('mousemove', (e) => {
             if (down) {
@@ -144,10 +150,12 @@
         function updateColor() {
             let hsv = getHSV(lastx, lasty)
             if (hsv) {
-                fetch('/color/1', {
-                    method: 'post',
-                    body: JSON.stringify({h: hsv[0], s: hsv[1], v: hsv[2]})
-                })
+                for (let i = 0; i < 18; i++) {
+                    fetch(`/color/${i}`, {
+                        method: 'post',
+                        body: JSON.stringify({ h: hsv[0], s: hsv[1], v: hsv[2] })
+                    })
+                }
             }
         }
 
