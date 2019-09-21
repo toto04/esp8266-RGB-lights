@@ -10,7 +10,7 @@ export default (homebridge: any) => {
 // for testing purposes
 if (require.main === module) {
     console.log("starting in stand-alone mode")
-    let sal = new Light(18)
+    let sal = new Light('Tommy', 18)
 }
 
 class RGBLights {
@@ -25,7 +25,7 @@ class RGBLights {
         this.config = config
         this.name = config.name
 
-        this.light = new Light(18)
+        this.light = new Light(this.name, 18)
 
         this.service = new Service.Lightbulb(this.name, 'RGB Strip')
         this.service.getCharacteristic(Characteristic.On)
