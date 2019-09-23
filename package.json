@@ -24,7 +24,11 @@
   "homepage": "https://github.com/toto04/esp8266-RGB-lights#readme",
   "dependencies": {
     "color-convert": "^2.0.1",
+    "express": "^4.17.1",
     "mosca": "^2.8.3",
     "mqtt": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.1"
   }
 }
