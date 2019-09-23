@@ -24,37 +24,26 @@ CHSV colors[PIXELAMOUNT];
 #define STEPS 15
 int missingSteps = STEPS;
 
-String mode = "fixed";
+enum class Mode
+{
+    fixed,
+    perlin,
+    rainbow
+};
+
+static Mode mode = Mode::fixed;
 
 /* Code */
 // callback for mqtt connection
 void callback(char *top, byte *pl, unsigned int length)
 {
-    String topic = String(top);
-    char pla[length];
-    for (int i = 0; i < length; i++)
+    mode = (Mode)pl[0];
+    for (int i = 0; i < PIXELAMOUNT; i++)
     {
-        pla[i] = pl[i];
-    }
-    String payload = String(pla);
-    // -------------------------
-
-    uint8_t pixId = payload.toInt();
-    if (topic == "hue")
-    {
-        colors[pixId].h = payload.substring(payload.indexOf(' ') + 1).toInt();
-    }
-    else if (topic == "saturation")
-    {
-        colors[pixId].s = payload.substring(payload.indexOf(' ') + 1).toInt();
-    }
-    else if (topic == "brightness")
-    {
-        colors[pixId].v = payload.substring(payload.indexOf(' ') + 1).toInt();
-    }
-    else if (topic == "mode")
-    {
-        mode = payload;
+        int idx = i * 3 + 1;
+        colors[i].h = pl[idx + 0];
+        colors[i].s = pl[idx + 1];
+        colors[i].v = pl[idx + 2];
     }
     missingSteps = STEPS;
 }
@@ -63,9 +52,10 @@ void setup()
 {
     Serial.begin(115200);
     for (int i = 0; i < PIXELAMOUNT; i++)
-        colors[i] = CHSV(0, 0, 100);
+        colors[i] = CHSV(0, 0, 255);
     FastLED.addLeds<WS2812, LEDPIN, RGB>(leds, PIXELAMOUNT)
-        .setCorrection(TypicalLEDStrip);
+        .setCorrection(TypicalLEDStrip)
+        .setTemperature(Tungsten100W);
     FastLED.clear();
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
@@ -84,10 +74,7 @@ void setup()
     client.setCallback(callback);
     if (client.connect("Luci Tommaso"))
     {
-        client.subscribe("hue");
-        client.subscribe("saturation");
-        client.subscribe("brightness");
-        client.subscribe("mode");
+        client.subscribe("Tommy");
     }
 }
 
@@ -101,12 +88,21 @@ void loop()
     else
         WiFi.reconnect();
 
-    if (mode == "fixed")
+    switch (mode)
+    {
+    case Mode::fixed:
         fixed();
-    else if (mode == "rainbow")
-        rainbow();
-    else if (mode == "perlin")
+        break;
+    case Mode::perlin:
         perlin();
+        break;
+    case Mode::rainbow:
+        rainbow();
+        break;
+    default:
+        fixed();
+        break;
+    }
 
     delay(33); // refreshes on 30Hz
 }
@@ -143,14 +139,14 @@ void rainbow()
 }
 
 static uint16_t perlinOffset = 0;
-#define VARIANCE 150 // how low the lowest valley will go
+#define VARIANCE 80 // how low the lowest valley will go
 #define SPEED 10     // uint8, how fast the pattern changes
 #define DISTANCE 100 // uint7, the difference between the pixels, the higher the tighter
 void perlin()
 {
     for (int i = 0; i < PIXELAMOUNT; i++)
     {
-        int bri = colors[i].v - inoise8(i * DISTANCE, perlinOffset * SPEED) * VARIANCE / 255.0;
+        int bri = colors[i].v - (float)inoise8(i * DISTANCE, perlinOffset * SPEED) * (float)VARIANCE / 255.0;
         if (bri > 255)
             bri = 255;
         if (bri < 0)
@@ -162,6 +158,7 @@ void perlin()
             leds[i].r += ((int)newColor.r - (int)leds[i].r) / missingSteps;
             leds[i].g += ((int)newColor.g - (int)leds[i].g) / missingSteps;
             leds[i].b += ((int)newColor.b - (int)leds[i].b) / missingSteps;
+            missingSteps--;
         }
         else
         {

@@ -4,9 +4,9 @@ import mqtt, { MqttClient } from 'mqtt'
 import mosca from 'mosca'
 
 enum Mode {
-    fixed = 0,
-    perlin = 1,
-    rainbow = 2
+    fixed,
+    perlin,
+    rainbow
 }
 
 export default class Light {
@@ -29,9 +29,9 @@ export default class Light {
         this.broker.on('clientConnected', (c: { id: any; }) => {
             console.log(`[broker] connected client: ${c.id}`)
         })
-        this.broker.on('published', (packet) => {
-            console.log(packet.topic, packet.payload)
-        })
+        // this.broker.on('published', (packet) => {
+        //     console.log(packet.topic, packet.payload)
+        // })
         this.client = mqtt.connect('mqtt://localhost')
 
         this.server.on('color', (id: number, h: number, s: number, v: number) => {
@@ -53,12 +53,11 @@ export default class Light {
     }
 
     private updateLights() {
-        console.log(this.mode, Buffer.from([this.mode]))
         let arrBuffer: number[] = [this.mode]
         for (let pixel of this.pixels) {
-            arrBuffer.push(pixel.h)
-            arrBuffer.push(pixel.s)
-            arrBuffer.push(pixel.v)
+            arrBuffer.push(Math.round(pixel.h * 255 / 360))
+            arrBuffer.push(Math.round(pixel.s * 255 / 100))
+            arrBuffer.push(Math.round(pixel.v * 255 / 100))
         }
         this.client.publish(this.name, Buffer.from(arrBuffer))
     }
@@ -97,7 +96,7 @@ export default class Light {
     }
 
     toJSON() {
-        return JSON.stringify({ pixels: this.pixels, mode: this.mode })
+        return JSON.stringify({ pixels: this.pixels, mode: Mode[this.mode] })
     }
 
     get hue() {
