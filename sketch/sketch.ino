@@ -7,7 +7,7 @@
 
 const char *ssid = "Rete WiFi Morganti";
 const char *pass = "0342070023";
-const char *mqtt_server = "192.168.1.7"; // Raspberry PI's IP
+const char *mqtt_server = "192.168.1.23"; // Raspberry PI's IP
 
 WiFiClient wclient;
 PubSubClient client = PubSubClient(wclient);

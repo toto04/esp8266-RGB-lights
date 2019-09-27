@@ -1,5 +1,26 @@
-import Light from './lights'
+import Light, { Mode } from './lights'
+import express from 'express'
+let app = express()
 let Service: any, Characteristic: any
+
+let lights = [
+    new Light('tommaso', 18)
+]
+
+app.use(express.text())
+app.post('/api/:light/:strip/:pixel', (req, res) => {
+    let hsv = JSON.parse(req.body)
+    let light = lights.find(l => l.name == req.params.light)
+    light.strips[parseInt(req.params.strip)][parseInt(req.params.pixel)].set(hsv.h, hsv.s, hsv.v)
+    res.end()
+})
+app.post('/api/:light/mode', (req, res) => {
+    let light = lights.find(l => l.name == req.params.light)
+    light.mode = Mode[String(req.body)]
+    res.end()
+})
+app.use(express.static(__dirname + '/static'))
+app.listen(2480)
 
 export default (homebridge: any) => {
     Service = homebridge.hap.Service
