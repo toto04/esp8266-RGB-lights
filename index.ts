@@ -8,6 +8,22 @@ let lights = [
 ]
 
 app.use(express.text())
+app.get('/api/', (req, res) => {
+    let response = {}
+    for (let light of lights) response[light.name] = light.toObject()
+    res.send(JSON.stringify(response))
+})
+app.route('/api/:light')
+    .get((req, res) => {
+        res.send(JSON.stringify(lights.find(l => l.name == req.params.light).toObject()))
+    })
+    .post((req, res) => {
+        if (req.body != 'on' && req.body != 'off') {
+            res.end()
+            return
+        }
+        lights.find(l => l.name == req.params.light).turn(req.body)
+    })
 app.post('/api/:light/:strip/:pixel', (req, res) => {
     let hsv = JSON.parse(req.body)
     let light = lights.find(l => l.name == req.params.light)

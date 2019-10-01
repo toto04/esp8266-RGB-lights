@@ -46,23 +46,6 @@ export default class Light {
         //     console.log(packet.topic, packet.payload)
         // })
         this.client = mqtt.connect('mqtt://localhost')
-
-        // this.server.on('color', (id: number, h: number, s: number, v: number) => {
-        //     this.setHue(h, id)
-        //     this.setSaturation(s, id)
-        //     this.setBrightness(v, id)
-        // })
-
-        // this.server.on('mode', (mode: string) => {
-        //     this.mode = Mode[mode]
-        //     this.sender.once(0, () => {
-        //         this.updateLights()
-        //     })
-        // })
-
-        // this.server.on('jsonReq', () => {
-        //     this.server.emit('jsonRes', this.toJSON())
-        // })
     }
 
     private updateLights() {
@@ -71,7 +54,7 @@ export default class Light {
             for (let pixel of strip) {
                 arrBuffer.push(Math.round(pixel.h * 255 / 360))
                 arrBuffer.push(Math.round(pixel.s * 255 / 100))
-                arrBuffer.push(Math.round(pixel.v * 255 / 100))
+                arrBuffer.push(this.on ? Math.round(pixel.v * 255 / 100) : 0)
             }
         }
         this.client.publish(this.name, Buffer.from(arrBuffer))
@@ -98,8 +81,8 @@ export default class Light {
         })
     }
 
-    toJSON() {
-        return JSON.stringify({ strips: this.strips, mode: Mode[this.mode] })
+    toObject() {
+        return { strips: this.strips, mode: Mode[this.mode], on: this.on }
     }
 
     get hue() {
