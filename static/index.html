@@ -1,175 +1,49 @@
 <html>
 
 <head>
-    <style>
-        body,
-        html {
-            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
-            background-color: #303030;
-            color: white;
-            width: 100%;
-        }
-
-        #pixContainer {
-            height: 100px;
-        }
-
-        .pixelSelector>div {
-            width: auto;
-            height: 100%;
-            display: inline-block;
-        }
-
-        .pixelSelector {
-            display: flex;
-            background: white;
-            height: 60px;
-            width: 80%;
-            margin: 20px 10%;
-        }
-
-        #colorSelector {
-            display: flex;
-            width: 100%;
-        }
-
-        .flexy {
-            margin: auto;
-        }
-
-        canvas {
-            display: block;
-        }
-
-        input {
-            margin-top: 25px;
-            width: 250px;
-        }
-
-        #right {
-            display: flex;
-        }
-
-        #color {
-            background-color: white;
-            margin-left: 30px;
-            height: 300px;
-            width: 50px;
-        }
-    </style>
+    <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
-    <div id="pixContainer">
-        <div class="pixelSelector"></div>
+    <h1 id="title">Luci</h1>
+    <div id="lightsContainer">
+        <p class="loading">Loading...</p>
     </div>
-    <div id="colorSelector">
-        <div id="left" class="flexy">
-            <h1>Offline</h1>
-            <select name="mode" id="mode">
-                <option value="fixed">fixed</option>
-                <option value="perlin">perlin noise</option>
-                <option value="rainbow">rainbow</option>
-            </select>
-        </div>
-        <div id="right" class="flexy">
-            <div>
-                <canvas id="picker" width="250" height="250"></canvas>
-                <input type="range" id="slider" min="0" max="100" value="100">
-            </div>
-            <div id="color"></div>
-        </div>
-    </div>
-
-    <script src="convert-bundle.js"></script>
-    <script>
-
-        let convert = window.convert
-        let lastx = 125, lasty = 125
-        let pixels = []
-
-        fetch('/json').then(async (res) => {
-            let obj = await res.json()
-            document.querySelector('h1').innerHTML = obj.mode
-            console.log('awd')
-            for (let i = 0; i < obj.pixels.length; i++) {
-                let el = document.createElement('div')
-                el.style.backgroundColor = '#' + convert.hsv.hex([obj.pixels[i].h, obj.pixels[i].s, obj.pixels[i].v])
-                pixels.push(el)
-                document.querySelector('.pixelSelector').appendChild(el)
-            }
-        })
-
-        let mode = document.querySelector('#mode')
-        mode.addEventListener('change', () => {
-            fetch('/mode', {
-                method: 'post',
-                body: mode.value
-            })
-        })
-
-        let slider = document.querySelector('#slider')
-        slider.addEventListener('change', () => {
-            updateWheel()
-            updateColor()
-        })
-        slider.addEventListener('input', () => {
-            updateColor()
-        })
-        let pickEl = document.querySelector('#picker')
-        let picker = pickEl.getContext('2d')
-        let down = false
-        pickEl.addEventListener('mousedown', (e) => {
-            down = true
-            lastx = e.x - pickEl.offsetLeft
-            lasty = e.y - pickEl.offsetTop
-            updateColor()
-        })
-        pickEl.addEventListener('mouseup', () => down = false)
-        pickEl.addEventListener('mousemove', (e) => {
-            if (down) {
-                lastx = e.x - pickEl.offsetLeft
-                lasty = e.y - pickEl.offsetTop
-                updateColor()
-            }
-        })
-        updateWheel()
-
-        function updateWheel() {
-            for (let x = 0; x < 250; x++) {
-                for (let y = 0; y < 250; y++) {
-                    let HSV = getHSV(x, y)
-                    if (!HSV) continue
-                    let rgb = convert.hsv.rgb(HSV)
-                    picker.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
-                    picker.fillRect(x, y, 1, 1)
-                }
-            }
-        }
-
-        function updateColor() {
-            let hsv = getHSV(lastx, lasty)
-            if (hsv) {
-                for (let i = 0; i < 18; i++) {
-                    fetch(`/color/${i}`, {
-                        method: 'post',
-                        body: JSON.stringify({ h: hsv[0], s: hsv[1], v: hsv[2] })
-                    })
-                }
-            }
-        }
-
-        function getHSV(x, y) {
-            let cx = x - 125
-            let cy = y - 125
-            let hue = Math.round(Math.atan2(cy, cx) / Math.PI * 180) + 180
-            let sat = Math.sqrt(cx * cx + cy * cy)
-            if (sat > 125) return
-            sat = Math.round(sat / 1.25)
-            return [hue, sat, slider.value]
-        }
-
-    </script>
 </body>
+
+<script>
+
+    fetch('/api/').then(async res => {
+        let lights = await res.json()
+        document.querySelector('.loading').remove()
+        for (let key in lights) {
+            createLight(key, lights[key].on)
+        }
+    })
+
+    function createLight(name, state) {
+        let c = document.createElement('input')
+        c.addEventListener('change', () => {
+            console.log(name + ' is now ' + c.checked)
+        })
+        c.type = 'checkbox'
+        c.checked = state
+        let s = document.createElement('span')
+        s.className = 'slider'
+
+        let l = document.createElement('label')
+        l.className = "switch unselectable"
+        l.append(c, s)
+
+        let a = document.createElement('a')
+        a.href = '/lights.html?l=' + name
+        a.appendChild(document.createTextNode(name))
+
+        let d = document.createElement('div')
+        d.className = "light"
+        d.append(a, l)
+        document.body.appendChild(d)
+    }
+</script>
 
 </html>

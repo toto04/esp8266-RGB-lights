@@ -1,11 +1,20 @@
 import Light, { Mode } from './lights'
+import mqtt, { MqttClient } from 'mqtt'
+import mosca from 'mosca'
 import express from 'express'
 let app = express()
 let Service: any, Characteristic: any
 
-let lights = [
-    new Light('tommaso', 18)
-]
+let lights: Light[] = []
+
+let broker = new mosca.Server({ port: 1883 })
+broker.on('clientConnected', (c: { id: any; }) => {
+    console.log(`[broker] connected client: ${c.id}`)
+})
+// this.broker.on('published', (packet) => {
+//     console.log(packet.topic, packet.payload)
+// })
+let client = mqtt.connect('mqtt://localhost')
 
 app.use(express.text())
 app.get('/api/', (req, res) => {
@@ -47,7 +56,17 @@ export default (homebridge: any) => {
 // for testing purposes
 if (require.main === module) {
     console.log("starting in stand-alone mode")
-    let sal = new Light('Tommy', 18)
+    lights = [
+        new Light('tommaso', 18, 5, 5),
+        new Light('lorenzo', 10, 10, 5, 5, 5),
+        new Light('prova', 20)
+    ]
+}
+
+for (let key in lights) {
+    lights[key].on('update', buf => {
+        if (buf instanceof Buffer) client.publish(key, buf)
+    })
 }
 
 class RGBLights {

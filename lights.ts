@@ -1,6 +1,5 @@
 import Ticker from './ticker'
-import mqtt, { MqttClient } from 'mqtt'
-import mosca from 'mosca'
+import { EventEmitter } from 'events'
 
 export enum Mode {
     fixed,
@@ -8,17 +7,15 @@ export enum Mode {
     rainbow
 }
 
-export default class Light {
+export default class Light extends EventEmitter {
     private sender = new Ticker(200)
-    private on = false
+    private ligthOn = false
     strips: { h: number, s: number, v: number, set: (h: number, s: number, v: number) => void }[][] = []
     name: string
     mode: Mode = Mode.fixed
 
-    client: MqttClient
-    broker: any
-
     constructor(name: string, ...stripLengths: number[]) {
+        super()
         this.name = name
         for (let i = 0; i < stripLengths.length; i++) {
             let pixs: { h: number, s: number, v: number, set: (h: number, s: number, v: number) => void }[] = []
@@ -37,15 +34,6 @@ export default class Light {
             })
             this.strips.push(pixs)
         }
-
-        this.broker = new mosca.Server({ port: 1883 })
-        this.broker.on('clientConnected', (c: { id: any; }) => {
-            console.log(`[broker] connected client: ${c.id}`)
-        })
-        // this.broker.on('published', (packet) => {
-        //     console.log(packet.topic, packet.payload)
-        // })
-        this.client = mqtt.connect('mqtt://localhost')
     }
 
     private updateLights() {
@@ -54,10 +42,10 @@ export default class Light {
             for (let pixel of strip) {
                 arrBuffer.push(Math.round(pixel.h * 255 / 360))
                 arrBuffer.push(Math.round(pixel.s * 255 / 100))
-                arrBuffer.push(this.on ? Math.round(pixel.v * 255 / 100) : 0)
+                arrBuffer.push(this.ligthOn ? Math.round(pixel.v * 255 / 100) : 0)
             }
         }
-        this.client.publish(this.name, Buffer.from(arrBuffer))
+        this.emit('update', Buffer.from(arrBuffer))
     }
 
     setHue(hue: number) {
@@ -82,7 +70,7 @@ export default class Light {
     }
 
     toObject() {
-        return { strips: this.strips, mode: Mode[this.mode], on: this.on }
+        return { strips: this.strips, mode: Mode[this.mode], on: this.ligthOn }
     }
 
     get hue() {
@@ -107,7 +95,7 @@ export default class Light {
     }
 
     turn(val: 'on' | 'off') {
-        this.on = val == 'on'
+        this.ligthOn = val == 'on'
     }
-    get state() { return this.on }
+    get state() { return this.ligthOn }
 }
