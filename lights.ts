@@ -48,6 +48,13 @@ export default class Light extends EventEmitter {
         this.emit('update', Buffer.from(arrBuffer))
     }
 
+    setMode(mode: Mode) {
+        this.mode = mode
+        this.sender.once(0, () => {
+            this.updateLights()
+        })
+    }
+
     setHue(hue: number) {
         for (let strip of this.strips) for (let pixel of strip) pixel.h = hue
         this.sender.once(0, () => {
@@ -96,6 +103,9 @@ export default class Light extends EventEmitter {
 
     turn(val: 'on' | 'off') {
         this.ligthOn = val == 'on'
+        this.sender.once(0, () => {
+            this.updateLights()
+        })
     }
     get state() { return this.ligthOn }
 }

@@ -11,9 +11,9 @@ let broker = new mosca.Server({ port: 1883 })
 broker.on('clientConnected', (c: { id: any; }) => {
     console.log(`[broker] connected client: ${c.id}`)
 })
-// this.broker.on('published', (packet) => {
-//     console.log(packet.topic, packet.payload)
-// })
+broker.on('published', (packet) => {
+    console.log(packet.topic, packet.payload)
+})
 let client = mqtt.connect('mqtt://localhost')
 
 app.use(express.text())
@@ -41,7 +41,7 @@ app.post('/api/:light/:strip/:pixel', (req, res) => {
 })
 app.post('/api/:light/mode', (req, res) => {
     let light = lights.find(l => l.name == req.params.light)
-    light.mode = Mode[String(req.body)]
+    light.setMode(Mode[String(req.body)])
     res.end()
 })
 app.use(express.static(__dirname + '/static'))
@@ -81,9 +81,13 @@ class RGBLights {
         this.config = config
         this.name = config.name
 
-        this.light = new Light(this.name, 18)
+        this.light = new (Function.prototype.bind.apply(Light, [null, this.config.name].concat(this.config.strips)))()
+        this.light.on('update', (buf: Buffer) => {
+            client.publish(this.name, buf)
+        })
+        lights.push(this.light)
 
-        this.service = new Service.Lightbulb(this.name, 'RGB Strip')
+        this.service = new Service.Lightbulb(this.name, this.name)
         this.service.getCharacteristic(Characteristic.On)
             .on('set', (v: boolean, cb: () => void) => {
                 this.light.turn(v ? "on" : "off")
