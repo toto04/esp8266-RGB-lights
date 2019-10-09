@@ -1,5 +1,51 @@
-import Light from './lights'
+import Light, { Mode } from './lights'
+import mqtt, { MqttClient } from 'mqtt'
+import mosca from 'mosca'
+import express from 'express'
+let app = express()
 let Service: any, Characteristic: any
+
+let lights: Light[] = []
+
+let broker = new mosca.Server({ port: 1883 })
+broker.on('clientConnected', (c: { id: any; }) => {
+    console.log(`[broker] connected client: ${c.id}`)
+})
+// this.broker.on('published', (packet) => {
+//     console.log(packet.topic, packet.payload)
+// })
+let client = mqtt.connect('mqtt://localhost')
+
+app.use(express.text())
+app.get('/api/', (req, res) => {
+    let response = {}
+    for (let light of lights) response[light.name] = light.toObject()
+    res.send(JSON.stringify(response))
+})
+app.route('/api/:light')
+    .get((req, res) => {
+        res.send(JSON.stringify(lights.find(l => l.name == req.params.light).toObject()))
+    })
+    .post((req, res) => {
+        if (req.body != 'on' && req.body != 'off') {
+            res.end()
+            return
+        }
+        lights.find(l => l.name == req.params.light).turn(req.body)
+    })
+app.post('/api/:light/:strip/:pixel', (req, res) => {
+    let hsv = JSON.parse(req.body)
+    let light = lights.find(l => l.name == req.params.light)
+    light.strips[parseInt(req.params.strip)][parseInt(req.params.pixel)].set(hsv.h, hsv.s, hsv.v)
+    res.end()
+})
+app.post('/api/:light/mode', (req, res) => {
+    let light = lights.find(l => l.name == req.params.light)
+    light.mode = Mode[String(req.body)]
+    res.end()
+})
+app.use(express.static(__dirname + '/static'))
+app.listen(2480)
 
 export default (homebridge: any) => {
     Service = homebridge.hap.Service
@@ -10,7 +56,17 @@ export default (homebridge: any) => {
 // for testing purposes
 if (require.main === module) {
     console.log("starting in stand-alone mode")
-    let sal = new Light('Tommy', 18)
+    lights = [
+        new Light('tommaso', 18, 5, 5),
+        new Light('lorenzo', 10, 10, 5, 5, 5),
+        new Light('prova', 20)
+    ]
+}
+
+for (let key in lights) {
+    lights[key].on('update', buf => {
+        if (buf instanceof Buffer) client.publish(key, buf)
+    })
 }
 
 class RGBLights {

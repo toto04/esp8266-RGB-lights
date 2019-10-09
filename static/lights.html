@@ -1,0 +1,173 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <h1 id="title">Luci</h1>
+    <div id="pixContainer">
+    </div>
+    <div id="colorSelector">
+        <div id="left" class="flexy">
+            <h1>Offline</h1>
+            <select name="mode" id="mode">
+                <option value="fixed">fixed</option>
+                <option value="perlin">perlin noise</option>
+                <option value="rainbow">rainbow</option>
+            </select>
+        </div>
+        <div id="right" class="flexy">
+            <div>
+                <canvas id="picker" width="250" height="250"></canvas>
+                <input type="range" id="slider" min="0" max="100" value="100">
+            </div>
+            <div id="color"></div>
+        </div>
+    </div>
+
+    <script src="htr.js"></script>
+    <script>
+
+        let convert = window.convert
+        let lastx = 125, lasty = 125
+
+        let light
+        let pixels = []
+        let selectedPixels = []
+        let pixelDown = false
+        let ticker = new Ticker(100)
+
+        let url = new URL(window.location.href)
+        let l = url.searchParams.get('l')
+        fetch(`/api/${l}`).then(async res => {
+            light = await res.json()
+            mode.value = light.mode
+            document.querySelector('#title').innerHTML = l
+            document.querySelectorAll('h1')[1].innerHTML = light.mode
+            for (const [i, strip] of light.strips.entries()) {
+                let s = document.createElement('div')
+                s.className = 'strip'
+                for (const [j, pix] of strip.entries()) {
+                    let p = document.createElement('div')
+                    p.className = 'pixel pixSelected'
+                    p.strip = i
+                    p.pixel = j
+                    let rgb = HSVtoRGB(pix.h, pix.s, pix.v)
+                    p.style.backgroundColor = `rgb(${rgb.r},${rgb.g},${rgb.b})`
+                    p.addEventListener('mousedown', () => {
+                        pixelDown = true
+                        pixels.forEach(p => p.className = "pixel")
+                        selectedPixels = []
+                    })
+                    p.addEventListener('mousemove', () => {
+                        if (pixelDown) {
+                            if (!selectedPixels.includes(p)) selectedPixels.push(p)
+                            p.className = 'pixel pixSelected'
+                        }
+                    })
+                    pixels.push(p)
+                    selectedPixels.push(p)
+                    s.appendChild(p)
+                }
+                document.getElementById('pixContainer').appendChild(s)
+            }
+        })
+
+        // fetch('/json').then(async (res) => {
+        //     let obj = await res.json()
+        //     document.querySelector('h1').innerHTML = obj.mode
+        //     console.log('awd')
+        //     for (let i = 0; i < obj.pixels.length; i++) {
+        //         let el = document.createElement('div')
+        //         el.style.backgroundColor = '#' + convert.hsv.hex([obj.pixels[i].h, obj.pixels[i].s, obj.pixels[i].v])
+        //         pixels.push(el)
+        //         document.querySelector('.pixelSelector').appendChild(el)
+        //     }
+        // })
+
+        let mode = document.querySelector('#mode')
+        mode.addEventListener('change', () => {
+            // fetch('/mode', {
+            //     method: 'post',
+            //     body: mode.value
+            // })
+        })
+
+        let slider = document.querySelector('#slider')
+        slider.addEventListener('change', () => {
+            updateWheel()
+        })
+        slider.addEventListener('input', () => {
+            updateColor()
+        })
+        let pickEl = document.querySelector('#picker')
+        let picker = pickEl.getContext('2d')
+        let wheelDown = false
+        pickEl.addEventListener('mousedown', (e) => {
+            wheelDown = true
+            lastx = e.x - pickEl.offsetLeft
+            lasty = e.y - pickEl.offsetTop
+            updateColor()
+        })
+        // pickEl.addEventListener('mouseup', () => wheelDown = false)
+        // pickEl.addEventListener('mouseout', () => wheelDown = false)
+        pickEl.addEventListener('mousemove', (e) => {
+            if (wheelDown) {
+                lastx = e.x - pickEl.offsetLeft
+                lasty = e.y - pickEl.offsetTop
+                updateColor()
+            }
+        })
+        updateWheel()
+
+        async function updateWheel() {
+            for (let x = 0; x < 250; x++) {
+                for (let y = 0; y < 250; y++) {
+                    let HSV = getHSV(x, y)
+                    if (!HSV) continue
+                    let rgb = HSVtoRGB(HSV[0], HSV[1], HSV[2])
+                    picker.fillStyle = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+                    picker.fillRect(x, y, 1, 1)
+                }
+            }
+        }
+
+        function updateColor() {
+            let hsv = getHSV(lastx, lasty)
+            if (hsv) {
+                let rgb = HSVtoRGB(hsv[0], hsv[1], hsv[2])
+                let bg = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+                document.getElementById('color').style.backgroundColor = bg
+                selectedPixels.forEach(p => {
+                    p.style.backgroundColor = bg
+                    let idx = p.pixel
+                    for (let i = 0; i < p.strip; i++) idx += light.strips[i].length
+                    ticker.once(idx, () => {
+                        fetch(`/api/${l}/${p.strip}/${p.pixel}`, {
+                            method: "post",
+                            body: JSON.stringify({ h: hsv[0], s: hsv[1], v: hsv[2] })
+                        })
+                    })
+                })
+            }
+        }
+
+        function getHSV(x, y) {
+            let cx = x - 125
+            let cy = y - 125
+            let hue = Math.round(Math.atan2(cy, cx) / Math.PI * 180) + 180
+            let sat = Math.sqrt(cx * cx + cy * cy)
+            if (sat > 125) return
+            sat = Math.round(sat / 1.2)
+            return [hue, sat, parseInt(slider.value)]
+        }
+
+        document.addEventListener('mouseup', () => {
+            pixelDown = false
+            wheelDown = false
+        })
+    </script>
+</body>
+
+</html>
