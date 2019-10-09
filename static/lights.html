@@ -58,7 +58,8 @@
                     p.addEventListener('mousedown', () => {
                         pixelDown = true
                         pixels.forEach(p => p.className = "pixel")
-                        selectedPixels = []
+                        selectedPixels = [p]
+                        p.className = 'pixel pixSelected'
                     })
                     p.addEventListener('mousemove', () => {
                         if (pixelDown) {
@@ -74,24 +75,12 @@
             }
         })
 
-        // fetch('/json').then(async (res) => {
-        //     let obj = await res.json()
-        //     document.querySelector('h1').innerHTML = obj.mode
-        //     console.log('awd')
-        //     for (let i = 0; i < obj.pixels.length; i++) {
-        //         let el = document.createElement('div')
-        //         el.style.backgroundColor = '#' + convert.hsv.hex([obj.pixels[i].h, obj.pixels[i].s, obj.pixels[i].v])
-        //         pixels.push(el)
-        //         document.querySelector('.pixelSelector').appendChild(el)
-        //     }
-        // })
-
         let mode = document.querySelector('#mode')
         mode.addEventListener('change', () => {
-            // fetch('/mode', {
-            //     method: 'post',
-            //     body: mode.value
-            // })
+            fetch(`/api/${l}/mode`, {
+                method: 'post',
+                body: mode.value
+            })
         })
 
         let slider = document.querySelector('#slider')
@@ -159,7 +148,7 @@
             let hue = Math.round(Math.atan2(cy, cx) / Math.PI * 180) + 180
             let sat = Math.sqrt(cx * cx + cy * cy)
             if (sat > 125) return
-            sat = Math.round(sat / 1.2)
+            sat = Math.round(sat / 1.25)
             return [hue, sat, parseInt(slider.value)]
         }
 

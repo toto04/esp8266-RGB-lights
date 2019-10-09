@@ -11,9 +11,9 @@ let broker = new mosca.Server({ port: 1883 })
 broker.on('clientConnected', (c: { id: any; }) => {
     console.log(`[broker] connected client: ${c.id}`)
 })
-broker.on('published', (packet) => {
-    console.log(packet.topic, packet.payload)
-})
+// broker.on('published', (packet) => {
+//     console.log(packet.topic, packet.payload)
+// })
 let client = mqtt.connect('mqtt://localhost')
 
 app.use(express.text())
@@ -27,11 +27,10 @@ app.route('/api/:light')
         res.send(JSON.stringify(lights.find(l => l.name == req.params.light).toObject()))
     })
     .post((req, res) => {
-        if (req.body != 'on' && req.body != 'off') {
-            res.end()
-            return
+        if (req.body == 'on' || req.body == 'off') {
+            lights.find(l => l.name == req.params.light).turn(req.body)
         }
-        lights.find(l => l.name == req.params.light).turn(req.body)
+        res.end()
     })
 app.post('/api/:light/:strip/:pixel', (req, res) => {
     let hsv = JSON.parse(req.body)

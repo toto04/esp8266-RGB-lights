@@ -24,7 +24,7 @@
     function createLight(name, state) {
         let c = document.createElement('input')
         c.addEventListener('change', () => {
-            console.log(name + ' is now ' + c.checked)
+            fetch(`/api/${name}`, {method: 'post', body: c.checked ? 'on' : 'off'})
         })
         c.type = 'checkbox'
         c.checked = state

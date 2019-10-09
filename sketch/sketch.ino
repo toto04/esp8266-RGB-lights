@@ -74,7 +74,7 @@ void setup()
     client.setCallback(callback);
     if (client.connect("Luci Tommaso"))
     {
-        client.subscribe("Tommy");
+        client.subscribe("tommaso");
     }
 }
 

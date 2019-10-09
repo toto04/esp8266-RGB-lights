@@ -30,8 +30,6 @@ a {
     font-size: 50px;
 }
 
-
-
 #lightsContainer {
     width: 100%;
 }
@@ -111,6 +109,7 @@ input:checked+.slider:before {
 }
 
 .pixel {
+    cursor: pointer;
     flex: 1;
     box-sizing: border-box;
     border: 1px solid #2c2c2c;
