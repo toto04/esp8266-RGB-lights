@@ -62,9 +62,9 @@ if (require.main === module) {
     ]
 }
 
-for (let key in lights) {
-    lights[key].on('update', buf => {
-        if (buf instanceof Buffer) client.publish(key, buf)
+for (let light of lights) {
+    light.on('update', buf => {
+        if (buf instanceof Buffer) client.publish(light.name, buf)
     })
 }
 
