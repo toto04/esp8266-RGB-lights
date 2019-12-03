@@ -130,6 +130,10 @@ input:checked+.slider:before {
     margin: auto;
 }
 
+select {
+    display: block;
+}
+
 canvas {
     display: block;
     cursor: pointer;

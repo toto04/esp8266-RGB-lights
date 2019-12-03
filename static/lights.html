@@ -10,12 +10,22 @@
     </div>
     <div id="colorSelector">
         <div id="left" class="flexy">
+            <h2>Mode:</h2>
             <h1>Offline</h1>
             <select name="mode" id="mode">
                 <option value="fixed">fixed</option>
                 <option value="perlin">perlin noise</option>
                 <option value="rainbow">rainbow</option>
             </select>
+            <h1>Presets</h1>
+            <select name="preset" id="preset">
+                <option value="none">-- seleziona un preset --</option>
+            </select>
+            <br />
+            <label>Imposta stato attuale a nuovo preset:</label>
+            <input type="text" name="newPreset" id="newPresetName" placeholder="nome nuovo preset"
+                style="display: block; cursor: auto;" />
+            <button id="newPreset">Crea</button>
         </div>
         <div id="right" class="flexy">
             <div>
@@ -75,12 +85,48 @@
             }
         })
 
+        fetch(`/api/presets/${l}`).then(async res => {
+            let options = await res.json()
+            let select = document.getElementById('preset')
+            for (const option of options) {
+                select.innerHTML += `<option value="${option.name}">${option.name}</option>`
+            }
+            select.addEventListener('change', () => {
+                let option = options.find(o => o.name == select.value)
+                for (let p of pixels) {
+                    let idx = p.pixel
+                    for (let i = 0; i < p.strip; i++) idx += light.strips[i].length
+                    ticker.once(idx, () => {
+                        fetch(`/api/${l}/${p.strip}/${p.pixel}`, {
+                            method: "post",
+                            body: JSON.stringify(option.state.strips[p.strip][p.pixel])
+                        })
+                    })
+                }
+                ticker.once(1000, () => {
+                    fetch(`/api/${l}/mode`, {
+                        method: 'post',
+                        body: option.state.mode
+                    }).then(res => { location.reload() })
+                })
+            })
+        })
+
+        let newPreset = document.querySelector("#newPreset")
+        newPreset.addEventListener('click', () => {
+            fetch(`/api/presets/${l}`, {
+                method: "post",
+                body: document.querySelector("#newPresetName").value
+            }).then(res => { location.reload() })
+        })
+
         let mode = document.querySelector('#mode')
         mode.addEventListener('change', () => {
             fetch(`/api/${l}/mode`, {
                 method: 'post',
                 body: mode.value
             })
+            document.querySelectorAll('h1')[1].innerHTML = mode.value
         })
 
         let slider = document.querySelector('#slider')

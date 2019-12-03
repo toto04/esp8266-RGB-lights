@@ -2,7 +2,10 @@ import Light, { Mode } from './lights'
 import mqtt, { MqttClient } from 'mqtt'
 import mosca from 'mosca'
 import express from 'express'
+import Datastore from 'nedb'
 let app = express()
+let db = new Datastore({ filename: __dirname + '/presets.db' })
+db.loadDatabase()
 let Service: any, Characteristic: any
 
 let lights: Light[] = []
@@ -21,6 +24,18 @@ app.get('/api/', (req, res) => {
     let response = {}
     for (let light of lights) response[light.name] = light.toObject()
     res.send(JSON.stringify(response))
+})
+app.get('/api/presets/:light', (req, res) => {
+    db.find({ light: req.params.light }, (err, docs) => {
+        if (err) throw err
+        res.status(200).send(docs.map(e => ({ name: e.name, state: e.state })))
+    })
+})
+app.post('/api/presets/:light', (req, res) => {
+    let light = lights.find(l => l.name == req.params.light)
+    if (light) {
+        db.update({name: req.body}, {light: light.name, name: req.body, state: light.toObject()}, {upsert: true}, () => res.send({success: true}))
+    } else { res.send({ success: false }) }
 })
 app.route('/api/:light')
     .get((req, res) => {
@@ -56,9 +71,7 @@ export default (homebridge: any) => {
 if (require.main === module) {
     console.log("starting in stand-alone mode")
     lights = [
-        new Light('tommaso', 18, 5, 5),
-        new Light('lorenzo', 10, 10, 5, 5, 5),
-        new Light('prova', 20)
+        new Light('tommaso', 18)
     ]
 }
 

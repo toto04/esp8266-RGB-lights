@@ -31,8 +31,10 @@ class Ticker {
     }
     func() {
         for (let handler of this.handlers)
-            if (typeof handler == 'function')
-                handler();
+            try {
+                if (typeof handler == 'function')
+                    handler();
+            } catch (e) { }
         this.handlers = [];
     }
     once(id, h) {
