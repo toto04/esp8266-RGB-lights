@@ -14,6 +14,10 @@ let broker = new mosca.Server({ port: 1883 })
 broker.on('clientConnected', (c: { id: any; }) => {
     console.log(`[broker] connected client: ${c.id}`)
 })
+broker.on('subscribed', t => {
+    let l = lights.find(l => l.name == t)
+    if (l) l.turn(l.state ? 'on' : 'off')
+})
 // broker.on('published', (packet) => {
 //     console.log(packet.topic, packet.payload)
 // })
