@@ -1,7 +1,5 @@
 //Network
 #include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <PubSubClient.h>
 
@@ -41,11 +39,11 @@ static Mode mode = Mode::fixed;
 // callback for mqtt connection
 void callback(char *top, byte *pl, unsigned int length)
 {
-  Serial.println(top);
+    // Serial.println(top);
     mode = (Mode)pl[0];
     for (int i = 0; i < PIXELAMOUNT; i++)
     {
-      Serial.println(pl[i]);
+        // Serial.println(pl[i]);
         int idx = i * 3 + 1;
         colors[i].h = pl[idx + 0];
         colors[i].s = pl[idx + 1];
@@ -54,11 +52,40 @@ void callback(char *top, byte *pl, unsigned int length)
     missingSteps = STEPS;
 }
 
+void connectClient()
+{
+    if (client.connect("Luci Lorenzo"))
+    {
+        client.subscribe("lorenzo");
+        // Serial.println("subbed");
+    }
+}
+
+void flash(uint8_t hue, uint8_t sat, uint8_t maxbri, unsigned int length)
+{
+    uint8_t i = 0;
+    while (i < maxbri)
+    {
+        for (int j = 0; j < length; j++)
+            desk[j] = CHSV(hue, sat, i);
+        FastLED.show();
+        delay(2);
+        i++;
+    }
+    while (i > 0)
+    {
+        for (int j = 0; j < length; j++)
+            desk[j] = CHSV(hue, sat, i);
+        FastLED.show();
+        delay(2);
+        i--;
+    }
+}
+
 void setup()
 {
-    Serial.begin(115200);
     for (int i = 0; i < PIXELAMOUNT; i++)
-        colors[i] = CHSV(0, 0, 255);
+        colors[i] = CHSV(0, 0, 0);
     FastLED.addLeds<NEOPIXEL, 1>(monitor, MONITOR)
         .setCorrection(TypicalLEDStrip)
         .setTemperature(Tungsten100W);
@@ -69,38 +96,50 @@ void setup()
         .setCorrection(TypicalLEDStrip)
         .setTemperature(Tungsten100W);
     FastLED.clear();
+
+    WiFi.setAutoConnect(true);
+    WiFi.setAutoReconnect(true);
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        desk[0] = CRGB::Red;
-        FastLED.show();
-        delay(200);
-        desk[0] = CRGB::Black;
-        FastLED.show();
-        delay(800);
-    }
 
+    while (WiFi.status() != WL_CONNECTED)
+        flash(139, 205, 255, 1);
+
+    ArduinoOTA.setHostname("lorenzo");
+    ArduinoOTA.onStart([]() {
+        FastLED.clear();
+    });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+        double bar = ((double)progress / (double)total) * PIXELAMOUNT;
+        double complete, last;
+        last = modf(bar, &complete);
+        int i = 0;
+        while (i < complete)
+        {
+            desk[i] = CHSV(139, 205, 100);
+            i++;
+        }
+        desk[i] = CHSV(139, 205, int(last * 100));
+        FastLED.show();
+    });
+    ArduinoOTA.onEnd([]() {
+        flash(139, 205, 150, PIXELAMOUNT);
+    });
+    ArduinoOTA.onError([](ota_error_t error) {
+        flash(0, 255, 150, PIXELAMOUNT);
+    });
     ArduinoOTA.begin();
+    client.setBufferSize(512);
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback);
-    if (client.connect("Luci Tommaso"))
-    {
-        client.subscribe("tommaso");
-        Serial.println("subbed");
-    }
+    connectClient();
 }
 
 void loop()
 {
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        ArduinoOTA.handle();
-        client.loop();
-        Serial.println("looping");
-    }
-    else
-        WiFi.reconnect();
+    ArduinoOTA.handle();
+    if (!client.loop())
+        connectClient();
 
     switch (mode)
     {
@@ -118,7 +157,18 @@ void loop()
         break;
     }
 
-    delay(33); // refreshes on 30Hz
+    if (!client.connected())
+    {
+        uint8_t bri = colors[0].v;
+        if (bri < 30)
+            bri = 30;
+        desk[0] = CHSV(45, 255, bri);
+    }
+
+    if (missingSteps)
+        missingSteps--;
+    FastLED.show(); // outputs to the leds
+    delay(33);      // refreshes on 30Hz
 }
 
 void fixed()
@@ -149,8 +199,6 @@ void fixed()
                 shelf[idx].b += ((int)newColor.b - (int)shelf[idx].b) / missingSteps;
             }
         }
-        FastLED.show();
-        missingSteps--;
     }
 }
 
@@ -175,7 +223,6 @@ void rainbow()
         }
     }
     rainbow_hue++;
-    FastLED.show();
 }
 
 static uint16_t perlinOffset = 0;
@@ -235,6 +282,5 @@ void perlin()
             }
         }
     }
-    FastLED.show();
     perlinOffset++;
 }

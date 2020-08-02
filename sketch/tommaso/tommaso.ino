@@ -1,13 +1,12 @@
 //Network
 #include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <PubSubClient.h>
 
 const char *ssid = "Rete WiFi Morganti";
 const char *pass = "0342070023";
 const char *mqtt_server = "192.168.1.23"; // Raspberry PI's IP
+const char *name = "tommaso";
 
 WiFiClient wclient;
 PubSubClient client = PubSubClient(wclient);
@@ -48,45 +47,90 @@ void callback(char *top, byte *pl, unsigned int length)
     missingSteps = STEPS;
 }
 
+void flash(uint8_t hue, uint8_t sat, uint8_t maxbri, unsigned int length)
+{
+    uint8_t i = 0;
+    while (i < maxbri)
+    {
+        for (int j = 0; j < length; j++)
+            leds[j] = CHSV(hue, sat, i);
+        FastLED.show();
+        delay(2);
+        i++;
+    }
+    while (i > 0)
+    {
+        for (int j = 0; j < length; j++)
+            leds[j] = CHSV(hue, sat, i);
+        FastLED.show();
+        delay(2);
+        i--;
+    }
+}
+
+void connectClient()
+{
+    if (client.connect("Luci Tommaso"))
+    {
+        client.subscribe(name);
+        // Serial.println("subbed");
+    }
+}
+
 void setup()
 {
-    Serial.begin(115200);
+    // Serial.begin(115200);
     for (int i = 0; i < PIXELAMOUNT; i++)
         colors[i] = CHSV(0, 0, 255);
     FastLED.addLeds<WS2812, LEDPIN, RGB>(leds, PIXELAMOUNT)
         .setCorrection(TypicalLEDStrip)
         .setTemperature(Tungsten100W);
     FastLED.clear();
+
+    WiFi.setAutoConnect(true);
+    WiFi.setAutoReconnect(true);
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        leds[0] = CRGB::Red;
-        FastLED.show();
-        delay(200);
-        leds[0] = CRGB::Black;
-        FastLED.show();
-        delay(800);
-    }
 
+    while (WiFi.status() != WL_CONNECTED)
+        flash(139, 205, 255, 1);
+
+    ArduinoOTA.setHostname(name);
+    ArduinoOTA.onStart([]() {
+        FastLED.clear();
+    });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+        double bar = ((double)progress / (double)total) * PIXELAMOUNT;
+        double complete, last;
+        last = modf(bar, &complete);
+        int i = 0;
+        while (i < complete)
+        {
+            leds[i] = CHSV(139, 205, 100);
+            i++;
+        }
+        leds[i] = CHSV(139, 205, int(last * 100));
+        FastLED.show();
+    });
+    ArduinoOTA.onEnd([]() {
+        flash(139, 205, 150, PIXELAMOUNT);
+    });
+    ArduinoOTA.onError([](ota_error_t error) {
+        flash(0, 255, 150, PIXELAMOUNT);
+    });
     ArduinoOTA.begin();
+    client.setBufferSize(512);
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback);
-    if (client.connect("Luci Tommaso"))
-    {
-        client.subscribe("tommaso");
-    }
+    connectClient();
 }
 
 void loop()
 {
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        ArduinoOTA.handle();
-        client.loop();
-    }
-    else
-        WiFi.reconnect();
+    ArduinoOTA.handle();
+    if (!client.loop())
+        connectClient();
+    // Serial.println("looping");
 
     switch (mode)
     {
@@ -104,13 +148,23 @@ void loop()
         break;
     }
 
-    delay(33); // refreshes on 30Hz
+    if (!client.connected())
+    {
+        uint8_t bri = colors[0].v;
+        if (bri < 30)
+            bri = 30;
+        leds[0] = CHSV(45, 255, bri);
+    }
+
+    if (missingSteps)
+        missingSteps--;
+    FastLED.show(); // outputs to the leds
+    delay(33);      // refreshes on 30Hz
 }
 
 void fixed()
 {
     if (missingSteps)
-    {
         for (int i = 0; i < PIXELAMOUNT; i++)
         {
             const CRGB newColor = colors[i];
@@ -118,13 +172,6 @@ void fixed()
             leds[i].g += ((int)newColor.g - (int)leds[i].g) / missingSteps;
             leds[i].b += ((int)newColor.b - (int)leds[i].b) / missingSteps;
         }
-        Serial.println(missingSteps);
-        Serial.println(leds[0].r);
-        Serial.println(colors[0].h);
-        Serial.println();
-        FastLED.show();
-        missingSteps--;
-    }
 }
 
 static uint8_t rainbow_hue = 0;
@@ -135,11 +182,10 @@ void rainbow()
         leds[i] = CHSV(rainbow_hue - i * 15, 255, colors[i].v);
     }
     rainbow_hue++;
-    FastLED.show();
 }
 
 static uint16_t perlinOffset = 0;
-#define VARIANCE 80 // how low the lowest valley will go
+#define VARIANCE 80  // how low the lowest valley will go
 #define SPEED 10     // uint8, how fast the pattern changes
 #define DISTANCE 100 // uint7, the difference between the pixels, the higher the tighter
 void perlin()
@@ -158,13 +204,11 @@ void perlin()
             leds[i].r += ((int)newColor.r - (int)leds[i].r) / missingSteps;
             leds[i].g += ((int)newColor.g - (int)leds[i].g) / missingSteps;
             leds[i].b += ((int)newColor.b - (int)leds[i].b) / missingSteps;
-            missingSteps--;
         }
         else
         {
             leds[i] = newColor;
         }
     }
-    FastLED.show();
     perlinOffset++;
 }
