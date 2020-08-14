@@ -14,10 +14,13 @@ PubSubClient client = PubSubClient(wclient);
 // LED configurations
 #include <FastLED.h>
 
-#define PIXELAMOUNT 18
+#define MONITOR 38
+#define DESK 54
+#define PIXELAMOUNT DESK + MONITOR
 #define LEDPIN 4
 
-CRGB leds[PIXELAMOUNT];
+CRGB monitor[MONITOR];
+CRGB leds[DESK];
 CHSV colors[PIXELAMOUNT];
 
 #define STEPS 15
@@ -47,6 +50,15 @@ void callback(char *top, byte *pl, unsigned int length)
     missingSteps = STEPS;
 }
 
+void connectClient()
+{
+    if (client.connect("Luci Tommaso"))
+    {
+        client.subscribe(name);
+        // Serial.println("subbed");
+    }
+}
+
 void flash(uint8_t hue, uint8_t sat, uint8_t maxbri, unsigned int length)
 {
     uint8_t i = 0;
@@ -68,21 +80,14 @@ void flash(uint8_t hue, uint8_t sat, uint8_t maxbri, unsigned int length)
     }
 }
 
-void connectClient()
-{
-    if (client.connect("Luci Tommaso"))
-    {
-        client.subscribe(name);
-        // Serial.println("subbed");
-    }
-}
-
 void setup()
 {
-    // Serial.begin(115200);
     for (int i = 0; i < PIXELAMOUNT; i++)
         colors[i] = CHSV(0, 0, 255);
-    FastLED.addLeds<WS2812, LEDPIN, RGB>(leds, PIXELAMOUNT)
+    FastLED.addLeds<NEOPIXEL, 1>(monitor, MONITOR)
+        .setCorrection(TypicalLEDStrip)
+        .setTemperature(Tungsten100W);
+    FastLED.addLeds<NEOPIXEL, LEDPIN>(leds, DESK)
         .setCorrection(TypicalLEDStrip)
         .setTemperature(Tungsten100W);
     FastLED.clear();
@@ -168,9 +173,19 @@ void fixed()
         for (int i = 0; i < PIXELAMOUNT; i++)
         {
             const CRGB newColor = colors[i];
-            leds[i].r += ((int)newColor.r - (int)leds[i].r) / missingSteps;
-            leds[i].g += ((int)newColor.g - (int)leds[i].g) / missingSteps;
-            leds[i].b += ((int)newColor.b - (int)leds[i].b) / missingSteps;
+            if (i < MONITOR)
+            {
+                monitor[i].r += ((int)newColor.r - (int)monitor[i].r) / missingSteps;
+                monitor[i].g += ((int)newColor.g - (int)monitor[i].g) / missingSteps;
+                monitor[i].b += ((int)newColor.b - (int)monitor[i].b) / missingSteps;
+            }
+            else
+            {
+                int idx = i - MONITOR;
+                leds[idx].r += ((int)newColor.r - (int)leds[idx].r) / missingSteps;
+                leds[idx].g += ((int)newColor.g - (int)leds[idx].g) / missingSteps;
+                leds[idx].b += ((int)newColor.b - (int)leds[idx].b) / missingSteps;
+            }
         }
 }
 
@@ -179,7 +194,15 @@ void rainbow()
 {
     for (int i = 0; i < PIXELAMOUNT; i++)
     {
-        leds[i] = CHSV(rainbow_hue - i * 15, 255, colors[i].v);
+        if (i < MONITOR)
+        {
+            monitor[i] = CHSV(rainbow_hue - i * 15, 255, colors[i].v);
+        }
+        else
+        {
+            int idx = i - MONITOR;
+            leds[idx] = CHSV(rainbow_hue - i * 15, 255, colors[idx].v);
+        }
     }
     rainbow_hue++;
 }
@@ -201,13 +224,31 @@ void perlin()
         const CRGB newColor = CHSV(colors[i].h, colors[i].s, bri);
         if (missingSteps)
         {
-            leds[i].r += ((int)newColor.r - (int)leds[i].r) / missingSteps;
-            leds[i].g += ((int)newColor.g - (int)leds[i].g) / missingSteps;
-            leds[i].b += ((int)newColor.b - (int)leds[i].b) / missingSteps;
+            if (i < MONITOR)
+            {
+                monitor[i].r += ((int)newColor.r - (int)monitor[i].r) / missingSteps;
+                monitor[i].g += ((int)newColor.g - (int)monitor[i].g) / missingSteps;
+                monitor[i].b += ((int)newColor.b - (int)monitor[i].b) / missingSteps;
+            }
+            else
+            {
+                int idx = i - MONITOR;
+                leds[idx].r += ((int)newColor.r - (int)leds[idx].r) / missingSteps;
+                leds[idx].g += ((int)newColor.g - (int)leds[idx].g) / missingSteps;
+                leds[idx].b += ((int)newColor.b - (int)leds[idx].b) / missingSteps;
+            }
         }
         else
         {
-            leds[i] = newColor;
+            if (i < MONITOR)
+            {
+                monitor[i] = newColor;
+            }
+            else
+            {
+                int idx = i - MONITOR;
+                leds[idx] = newColor;
+            }
         }
     }
     perlinOffset++;
