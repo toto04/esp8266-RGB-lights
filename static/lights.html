@@ -5,7 +5,9 @@
 </head>
 
 <body>
-    <h1 id="title">Luci</h1>
+    <div class="lightheader">
+        <h1 id="title">Luci</h1>
+    </div>
     <div id="pixContainer">
     </div>
     <div id="colorSelector">
@@ -31,6 +33,7 @@
             <div>
                 <canvas id="picker" width="250" height="250"></canvas>
                 <input type="range" id="slider" min="0" max="100" value="100">
+                <input type="text" id="hextext">
             </div>
             <div id="color"></div>
         </div>
@@ -55,6 +58,22 @@
             mode.value = light.mode
             document.querySelector('#title').innerHTML = l
             document.querySelectorAll('h1')[1].innerHTML = light.mode
+
+            let c = document.createElement('input')
+            c.addEventListener('change', () => {
+                fetch(`/api/${l}`, { method: 'post', body: c.checked ? 'on' : 'off' })
+            })
+            c.type = 'checkbox'
+            c.checked = light.on
+            let s = document.createElement('span')
+            s.className = 'slider'
+
+            let lab = document.createElement('label')
+            lab.className = "switch unselectable"
+            lab.append(c, s)
+
+            document.querySelector('.lightheader').append(lab)
+
             for (const [i, strip] of light.strips.entries()) {
                 let s = document.createElement('div')
                 s.className = 'strip'
@@ -70,6 +89,13 @@
                         pixels.forEach(p => p.className = "pixel")
                         selectedPixels = [p]
                         p.className = 'pixel pixSelected'
+                    })
+                    p.addEventListener('dblclick', () => {
+                        pixels.forEach(p => p.className = "pixel")
+                        for (let pixel of p.parentElement.children) {
+                            selectedPixels.push(pixel)
+                            pixel.className = 'pixel pixSelected'
+                        }
                     })
                     p.addEventListener('mousemove', () => {
                         if (pixelDown) {
@@ -154,6 +180,15 @@
                 updateColor()
             }
         })
+
+        let hextext = document.getElementById('hextext')
+        hextext.addEventListener('keyup', event => {
+            if (event.keyCode == 13) {
+                event.preventDefault()
+                setColor(...RGBtoHSV(...Object.values(HEXtoRGB(hextext.value))))
+            }
+        })
+
         updateWheel()
 
         async function updateWheel() {
@@ -171,21 +206,29 @@
         function updateColor() {
             let hsv = getHSV(lastx, lasty)
             if (hsv) {
-                let rgb = HSVtoRGB(hsv[0], hsv[1], hsv[2])
-                let bg = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
-                document.getElementById('color').style.backgroundColor = bg
-                selectedPixels.forEach(p => {
-                    p.style.backgroundColor = bg
-                    let idx = p.pixel
-                    for (let i = 0; i < p.strip; i++) idx += light.strips[i].length
-                    ticker.once(idx, () => {
-                        fetch(`/api/${l}/${p.strip}/${p.pixel}`, {
-                            method: "post",
-                            body: JSON.stringify({ h: hsv[0], s: hsv[1], v: hsv[2] })
-                        })
+                setColor(hsv[0], hsv[1], hsv[2])
+            }
+        }
+
+        function setColor(h, s, v) {
+            console.log({ h, s, v })
+            let rgb = HSVtoRGB(h, s, v)
+            let bg = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+            document.getElementById('color').style.backgroundColor = bg
+            document.getElementById('hextext').value = RGBtoHEX(rgb.r, rgb.g, rgb.b).toUpperCase()
+            selectedPixels.forEach(p => {
+                p.style.backgroundColor = bg
+                let idx = p.pixel
+                for (let i = 0; i < p.strip; i++) idx += light.strips[i].length
+                ticker.once(idx, () => {
+                    fetch(`/api/${l}/${p.strip}/${p.pixel}`, {
+                        method: "post",
+                        body: JSON.stringify({ h, s, v })
+                    }).then(async res => {
+                        console.log(await res.text())
                     })
                 })
-            }
+            })
         }
 
         function getHSV(x, y) {

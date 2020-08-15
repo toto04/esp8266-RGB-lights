@@ -55,21 +55,21 @@ export default class Light extends EventEmitter {
         })
     }
 
-    setHue(hue: number) {
+    private setHue(hue: number) {
         for (let strip of this.strips) for (let pixel of strip) pixel.h = hue
         this.sender.once(0, () => {
             this.updateLights()
         })
     }
 
-    setSaturation(saturation: number) {
+    private setSaturation(saturation: number) {
         for (let strip of this.strips) for (let pixel of strip) pixel.s = saturation
         this.sender.once(0, () => {
             this.updateLights()
         })
     }
 
-    setBrightness(brightness: number) {
+    private setBrightness(brightness: number) {
         for (let strip of this.strips) for (let pixel of strip) pixel.v = brightness
         this.sender.once(0, () => {
             this.updateLights()
